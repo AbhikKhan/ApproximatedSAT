@@ -7,7 +7,7 @@ def get_all_possible_values(ratio, err, output_file, depth):
     number_of_variables = len(ratio)
     solver = Solver()
 
-    # Create Z3 variables for x1, x2, x3, and x4
+    # Create Z3 variables for x1, x2, x3...xn
     R = []
     for i in range(number_of_variables):
         var_name = f'R{i+1}'
@@ -17,8 +17,8 @@ def get_all_possible_values(ratio, err, output_file, depth):
 
     # Adding constraint
     for i in range(number_of_variables):
-        solver.add(R[i]/4**depth - ratio[i] <= err)
-        solver.add(ratio[i] - R[i]/4**depth <= err)
+        solver.add(R[i] - ratio[i]*(4**depth) <= err*(4**depth))
+        solver.add(ratio[i]*(4**depth) - R[i] <= err*(4**depth))
     solver.add(Sum(R) == 4**depth)
 
     with open(output_file, 'w', newline='') as csvfile:
@@ -27,7 +27,7 @@ def get_all_possible_values(ratio, err, output_file, depth):
         header = [f'R{i+1}' for i in range(number_of_variables)]
         writer.writerow(header)
 
-        iter = 10
+        iter = 20
 
         # Iterate over all satisfying models
         while (solver.check() == sat) & (iter > 0):
@@ -55,11 +55,11 @@ def main():
     # ratio = [float(x) for x in input("Target ratio: ").split(',')]
     # err = float(input("Error: "))
     # fileName = input("File name: ")
-    ratio = [0.25, 0.30, 0.45]
-    err = 0.004
-    fileName = 'output.xls'
-    for d in range(3, 4):
-        get_all_possible_values(ratio, err, fileName, d)
+    ratio = [0.30, 0.23, 0.24, 0.23]
+    err = 0.007
+    fileName = 'output'
+    for d in range(3, 6):
+        get_all_possible_values(ratio, err, f"{fileName}{d}.xls", d)
 
 # If the it is called from this function
 if __name__ == "__main__":
