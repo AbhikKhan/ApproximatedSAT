@@ -59,13 +59,8 @@ def addvariables(d, N, opfile):
         opfile.write(variables)
     
     opfile.write("\n# Creating height variables\n")
-    opfile.write("h = Int('h')\n")
-    for i in range(2, d+1):
-        opfile.write(f"h_{i} = Int('h_{i}')\n")
-
-
-def ratioConsistencyConstraints():
-    pass        
+    for i in range(1, d+1):
+        opfile.write(f"h_{i}, H_{i} = Ints('h_{i} H_{i}')\n")
 
 
 def mixerConsistencyConstraints(d, N, opfile):   
@@ -73,7 +68,7 @@ def mixerConsistencyConstraints(d, N, opfile):
     opfile.write("\n# Adding mixer consistency constraint\n")
     for i in range(1, d):
         for j in range(1, N+1):
-            opfile.write(f"s.add(R_{i}_{j} == {N}*x_{i}_{j}+W_{i+1}_{i}*x_{i+1}_{j})\n")
+            opfile.write(f"s.add(R_{i}_{j} == ({N}**H_{i+1})*x_{i}_{j}+W_{i+1}_{i}*R_{i+1}_{j})\n")
     for j in range(1, N+1):
         opfile.write(f"s.add(R_{d}_{j} == x_{d}_{j})\n")
 
@@ -109,7 +104,7 @@ def nonNegativityConstraints(d, N, opfile):
             
 
 def heightConstraints(d, N, opfile):
-    opfile.write("\n# Adding height constraint\n")
+    opfile.write("\n# Adding sharing constraint\n")
     for i in range(2, d+1):
         constraint = f"s.add(If("
         for j in range(1, N+1):
@@ -126,21 +121,22 @@ def heightConstraints(d, N, opfile):
         opfile.write(constraint)
     opfile.write("\n")
 
+    opfile.write("\n# Adding height constraint\n")
+    opfile.write("s.add(h_1 == 1)\n")
     for i in range(2, d+1):
         opfile.write(f"s.add(If(W_{i}_{i-1} == 0, h_{i} == 0, h_{i} == 1))\n")
 
-    constraint = "\ns.add(h == 1+"
-    for i in range(2, d+1):
-        constraint += f"h_{i}+"
-    constraint = constraint[:-1]+")\n"
-    opfile.write(constraint)
-
+    for i in range(1, d):
+        constraint = f"s.add(H_{i} == H_{i+1}+h_{i})\n"
+        opfile.write(constraint)
+    opfile.write(f"s.add(H_{d} == h_{d})\n")
+    
 
 def setTarget(target, err, d, N, opfile):
     opfile.write("\n# Adding base condition\n")
     for i in range(1, N+1):
-        condition1 = f"s.add({target[i-1]}*({N}**h) - R_1_{i} <= {err}*({N}**h))\n"
-        condition2 = f"s.add(R_1_{i} - {target[i-1]}*({N}**h) <= {err}*({N}**h))\n"
+        condition1 = f"s.add({target[i-1]}*({N}**H_1) - R_1_{i} <= {err}*({N}**H_1))\n"
+        condition2 = f"s.add(R_1_{i} - {target[i-1]}*({N}**H_1) <= {err}*({N}**H_1))\n"
         opfile.write(condition1)
         opfile.write(condition2)
 
