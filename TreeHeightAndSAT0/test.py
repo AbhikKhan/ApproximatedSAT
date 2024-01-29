@@ -58,9 +58,9 @@ def addvariables(d, R, opfile):
         variables += f"W_{i}_{i-1}')\n"
         opfile.write(variables)
     
-    opfile.write("\n# Creating height variables\n")
-    for i in range(1, d+1):
-        opfile.write(f"h_{i}, H_{i} = Ints('h_{i} H_{i}')\n")
+    # opfile.write("\n# Creating height variables\n")
+    # for i in range(1, d+1):
+    #     opfile.write(f"h_{i}, H_{i} = Ints('h_{i} H_{i}')\n")
 
 
 def mixerConsistencyConstraints(d, N, R, opfile):   
@@ -68,7 +68,7 @@ def mixerConsistencyConstraints(d, N, R, opfile):
     opfile.write("\n# Adding mixer consistency constraint\n")
     for i in range(1, d):
         for j in range(1, R+1):
-            opfile.write(f"s.add(R_{i}_{j} == ({N}**H_{i+1})*x_{i}_{j}+W_{i+1}_{i}*R_{i+1}_{j})\n")
+            opfile.write(f"s.add(R_{i}_{j} == ({N}**{d-i})*x_{i}_{j}+W_{i+1}_{i}*R_{i+1}_{j})\n") # Need to change in case of considering height as variable
     for j in range(1, R+1):
         opfile.write(f"s.add(R_{d}_{j} == x_{d}_{j})\n")
 
@@ -87,7 +87,7 @@ def nonNegativityConstraints(d, N, R, opfile):
     opfile.write("\n# Adding nonnegativity constraints on sharing of intermediate fluids\n")
     values = "s.add(And("
     for i in range(2, d+1):
-        values += f"W_{i}_{i-1} >= 0, W_{i}_{i-1} <= 3, "
+        values += f"W_{i}_{i-1} > 0, W_{i}_{i-1} <= 3, " # Need to change in case of considering height as variable
     values = values[:-2]
     values += "))\n"
     opfile.write(values)
@@ -99,10 +99,11 @@ def nonNegativityConstraints(d, N, R, opfile):
             variables += f"x_{i}_{j}+"
         if i < d:
             variables += f"W_{i+1}_{i}+"
-        variables = "s.add(Or("+variables[:-1]+"==0, "+variables[:-1]+"==4))\n"
+        variables =f"s.add({variables[:-1]}==4)\n" # Need to change in case of considering height as variable
         opfile.write(variables)
             
 
+"""
 def heightConstraints(d, R, opfile):
     opfile.write("\n# Adding sharing constraint\n")
     for i in range(2, d+1):
@@ -134,22 +135,16 @@ def heightConstraints(d, R, opfile):
         constraint = f"s.add(H_{i} == H_{i+1}+h_{i})\n"
         opfile.write(constraint)
     opfile.write(f"s.add(H_{d} == h_{d})\n")
-    
+"""
 
-def setTarget(target, err, R, N, opfile):
+def setTarget(target, err, R, N, d, opfile):
     opfile.write("\n# Adding base condition\n")
     for i in range(1, R+1):
-        condition1 = f"s.add({target[i-1]}*({N}**H_1) - R_1_{i} <= {err}*({N}**H_1))\n"
-        condition2 = f"s.add(R_1_{i} - {target[i-1]}*({N}**H_1) <= {err}*({N}**H_1))\n"
+        condition1 = f"s.add({target[i-1]}*({N}**{d}) - R_1_{i} <= {err}*({N}**{d}))\n"
+        condition2 = f"s.add(R_1_{i} - {target[i-1]}*({N}**{d}) <= {err}*({N}**{d}))\n"
         opfile.write(condition1)
         opfile.write(condition2)
 
-def demoSetTarget(N, opfile):
-    opfile.write("\n# Adding base condition\n")
-    opfile.write("s.add(R_1_1 == 19)\n")
-    opfile.write("s.add(R_1_2 == 15)\n")
-    opfile.write("s.add(R_1_3 == 15)\n")
-    opfile.write("s.add(R_1_4 == 15)\n")
 
 def genMixing(M:list):
     outputTree = genMix(M, len(M))
@@ -158,10 +153,9 @@ def genMixing(M:list):
 
 
 if __name__ == "__main__":
-    N, R, d = 4, 3, 3
-
-    # targetRatio = [0.30, 0.23, 0.24, 0.23]
-    targetRatio = [0.25, 0.30, 0.45]
+    targetRatio = [0.30, 0.23, 0.24, 0.23]
+    # targetRatio = [0.25, 0.30, 0.45]
+    N, R, d = 4, len(targetRatio), 3
     err = 0.007
 
     file = "z3Optimizer.py"
@@ -170,8 +164,8 @@ if __name__ == "__main__":
     addvariables(d, R, opfile)
     nonNegativityConstraints(d, N, R, opfile)
     mixerConsistencyConstraints(d, N, R, opfile)
-    heightConstraints(d, R, opfile)
-    setTarget(targetRatio, err, R, N, opfile)
+    # heightConstraints(d, R, opfile)
+    setTarget(targetRatio, err, R, N, d, opfile)
     # demoSetTarget(N, opfile)
     finishOPT(opfile)
     # ratio = input('mixing ratio: ')
