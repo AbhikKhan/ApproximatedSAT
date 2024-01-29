@@ -22,16 +22,16 @@ def finishOPT(opFile):
     opFile.close()
 
 
-def addvariables(d, N, opfile):
+def addvariables(d, R, opfile):
     # Creating mixer variables
     opfile.write("# Adding mixer variables\n")
     for i in range(1, d+1):
         variables = ""
-        for j in range(1, N+1):
+        for j in range(1, R+1):
             variables += f"R_{i}_{j}, "
         variables = variables[:-2]
         variables += " = Ints('"
-        for j in range(1, N+1):
+        for j in range(1, R+1):
             variables += f"R_{i}_{j} "
         variables = variables[:-1]+"')\n"
         opfile.write(variables)
@@ -40,11 +40,11 @@ def addvariables(d, N, opfile):
     opfile.write("\n# Creating reagent usage variable\n")
     for i in range(1, d+1):
         variables = ""
-        for j in range(1, N+1):
+        for j in range(1, R+1):
             variables += f"x_{i}_{j}, "
         variables = variables[:-2]
         variables += " = Ints('"
-        for j in range(1, N+1):
+        for j in range(1, R+1):
             variables += f"x_{i}_{j} "
         variables = variables[:-1]+"')\n"
         opfile.write(variables)
@@ -63,22 +63,22 @@ def addvariables(d, N, opfile):
         opfile.write(f"h_{i}, H_{i} = Ints('h_{i} H_{i}')\n")
 
 
-def mixerConsistencyConstraints(d, N, opfile):   
+def mixerConsistencyConstraints(d, N, R, opfile):   
     # Adding ratios at each mixers
     opfile.write("\n# Adding mixer consistency constraint\n")
     for i in range(1, d):
-        for j in range(1, N+1):
+        for j in range(1, R+1):
             opfile.write(f"s.add(R_{i}_{j} == ({N}**H_{i+1})*x_{i}_{j}+W_{i+1}_{i}*R_{i+1}_{j})\n")
-    for j in range(1, N+1):
+    for j in range(1, R+1):
         opfile.write(f"s.add(R_{d}_{j} == x_{d}_{j})\n")
 
 
-def nonNegativityConstraints(d, N, opfile):  
+def nonNegativityConstraints(d, N, R, opfile):  
     # Adding nonnegativity constraints
     opfile.write("\n# Adding nonnegativity constraints on reagent usage\n")
     for i in range(1, d+1):
         values = "s.add(And("
-        for j in range(1, N+1):
+        for j in range(1, R+1):
             values += f"x_{i}_{j} >= 0, x_{i}_{j} <= 4, "
         values = values[:-2]
         values += "))\n"
@@ -95,7 +95,7 @@ def nonNegativityConstraints(d, N, opfile):
     opfile.write("\n# Adding nonnegativity constraints on total mixer units\n")
     for i in range(1, d+1):
         variables = ""
-        for j in range(1, N+1):
+        for j in range(1, R+1):
             variables += f"x_{i}_{j}+"
         if i < d:
             variables += f"W_{i+1}_{i}+"
@@ -103,28 +103,32 @@ def nonNegativityConstraints(d, N, opfile):
         opfile.write(variables)
             
 
-def heightConstraints(d, N, opfile):
+def heightConstraints(d, R, opfile):
     opfile.write("\n# Adding sharing constraint\n")
     for i in range(2, d+1):
-        constraint = f"s.add(If("
-        for j in range(1, N+1):
+        constraint = f"constraint{i} = "
+        for j in range(1, R+1):
             constraint += f"x_{i}_{j}+"
         # If part
-        constraint = constraint[:-1]+f"==0, And("
-        for k in range(i, d+1):
-            constraint += f"W_{k}_{k-1} == 0, "
-        # Else part
-        constraint = constraint[:-2]+"), And("
-        for k in range(i, d+1):
-            constraint += f"W_{k}_{k-1} >= 0, "
-        constraint = constraint[:-2]+")))\n"
+        constraint = constraint[:-1]+f"==0\n"
         opfile.write(constraint)
-    opfile.write("\n")
+        condition = "And("
+        for k in range(i, d+1):
+            condition += f"W_{k}_{k-1} == 0, "
+        condition = condition[:-2]+")"
+        opfile.write(f"s.add(Implies(constraint{i}, {condition}))\n")
+        # Else part
+        condition = "And("
+        for k in range(i, d+1):
+            condition += f"W_{k}_{k-1} >= 0, "
+        condition = condition[:-2]+")"
+        opfile.write(f"s.add(Implies(Not(constraint{i}), {condition}))\n")
 
     opfile.write("\n# Adding height constraint\n")
     opfile.write("s.add(h_1 == 1)\n")
     for i in range(2, d+1):
-        opfile.write(f"s.add(If(W_{i}_{i-1} == 0, h_{i} == 0, h_{i} == 1))\n")
+        opfile.write(f"s.add(Implies(W_{i}_{i-1} == 0, h_{i} == 0))\n")
+        opfile.write(f"s.add(Implies(W_{i}_{i-1} > 0, h_{i} == 1))\n")
 
     for i in range(1, d):
         constraint = f"s.add(H_{i} == H_{i+1}+h_{i})\n"
@@ -132,14 +136,20 @@ def heightConstraints(d, N, opfile):
     opfile.write(f"s.add(H_{d} == h_{d})\n")
     
 
-def setTarget(target, err, d, N, opfile):
+def setTarget(target, err, R, N, opfile):
     opfile.write("\n# Adding base condition\n")
-    for i in range(1, N+1):
+    for i in range(1, R+1):
         condition1 = f"s.add({target[i-1]}*({N}**H_1) - R_1_{i} <= {err}*({N}**H_1))\n"
         condition2 = f"s.add(R_1_{i} - {target[i-1]}*({N}**H_1) <= {err}*({N}**H_1))\n"
         opfile.write(condition1)
         opfile.write(condition2)
 
+def demoSetTarget(N, opfile):
+    opfile.write("\n# Adding base condition\n")
+    opfile.write("s.add(R_1_1 == 19)\n")
+    opfile.write("s.add(R_1_2 == 15)\n")
+    opfile.write("s.add(R_1_3 == 15)\n")
+    opfile.write("s.add(R_1_4 == 15)\n")
 
 def genMixing(M:list):
     outputTree = genMix(M, len(M))
@@ -148,19 +158,21 @@ def genMixing(M:list):
 
 
 if __name__ == "__main__":
-    N, d = 4, 4
+    N, R, d = 4, 3, 3
 
-    targetRatio = [0.30, 0.23, 0.24, 0.23]
+    # targetRatio = [0.30, 0.23, 0.24, 0.23]
+    targetRatio = [0.25, 0.30, 0.45]
     err = 0.007
 
     file = "z3Optimizer.py"
     opfile = open(file, "w+")
     initOPT(opfile)
-    addvariables(d, N, opfile)
-    nonNegativityConstraints(d, N, opfile)
-    mixerConsistencyConstraints(d, N, opfile)
-    heightConstraints(d, N, opfile)
-    setTarget(targetRatio, err, d, N, opfile)
+    addvariables(d, R, opfile)
+    nonNegativityConstraints(d, N, R, opfile)
+    mixerConsistencyConstraints(d, N, R, opfile)
+    heightConstraints(d, R, opfile)
+    setTarget(targetRatio, err, R, N, opfile)
+    # demoSetTarget(N, opfile)
     finishOPT(opfile)
     # ratio = input('mixing ratio: ')
     # ratio = '19:15:15:15'
