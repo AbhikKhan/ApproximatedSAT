@@ -1,4 +1,5 @@
 from NTM import *
+import subprocess
 
 def initOPT(opFile):
     opFile.write("import sys\n")
@@ -7,15 +8,16 @@ def initOPT(opFile):
     opFile.write("s = Optimize()\n\n")
 
 
-def finishOPT(opFile):
+def finishOPT(opFile, ind):
     opFile.write("\nstartTime = time.time()\n")
+    opFile.write(f"fp = open(\'z3outputFile{ind}\',\'w\')\n")
     opFile.write("if s.check() == sat:\n")
-    opFile.write("\tfp = open(\'z3outputFile\',\'w\')\n")
     opFile.write("\tlst = s.model()\n")
     opFile.write("\tfor i in lst:\n")
     opFile.write("\t    fp.write(str(i) + \" = \" + str(s.model()[i]) + '\\n')\n")    
     opFile.write("else:\n")
     opFile.write("\tprint('unsat')\n")
+    opFile.write("\tfp.write('unsat')\n")
     opFile.write('endTime = time.time()\n')
     opFile.write('executionTime = endTime - startTime\n')
     opFile.write("print(\"Execution Time = \",executionTime)\n")
@@ -153,22 +155,30 @@ def genMixing(M:list):
 
 
 if __name__ == "__main__":
-    targetRatio = [0.30, 0.23, 0.24, 0.23]
-    # targetRatio = [0.25, 0.30, 0.45]
-    N, R, d = 4, len(targetRatio), 3
-    err = 0.007
-
-    file = "z3Optimizer.py"
-    opfile = open(file, "w+")
-    initOPT(opfile)
-    addvariables(d, R, opfile)
-    nonNegativityConstraints(d, N, R, opfile)
-    mixerConsistencyConstraints(d, N, R, opfile)
-    # heightConstraints(d, R, opfile)
-    setTarget(targetRatio, err, R, N, d, opfile)
-    # demoSetTarget(N, opfile)
-    finishOPT(opfile)
-    # ratio = input('mixing ratio: ')
-    # ratio = '19:15:15:15'
-    # M = [(f'r{i}', int(x)) for i, x in enumerate(ratio.split(':'))]
-    # genMixing(M)
+    targetRatios = [[0.30, 0.23, 0.24, 0.23],
+                   [0.25, 0.30, 0.45],
+                   [0.35, 0.50, 0.15],
+                   [0.25, 0.38, 0.25, 0.12],
+                   [0.17, 0.27, 0.31, 0.25],
+                   [0.15, 0.45, 0.18, 0.22],
+                   [0.18, 0.39, 0.23, 0.2]]
+    errs = [0.007, 0.007, 0.003, 0.009, 0.01, 0.015, 0.006]
+    ind = 0
+    for targetRatio, err in zip(targetRatios, errs):
+        N, R, d = 4, len(targetRatio), 3
+        while d< 10:
+            file = "z3Optimizer.py"
+            opfile = open(file, "w+")
+            initOPT(opfile)
+            addvariables(d, R, opfile)
+            nonNegativityConstraints(d, N, R, opfile)
+            mixerConsistencyConstraints(d, N, R, opfile)
+            setTarget(targetRatio, err, R, N, d, opfile)
+            finishOPT(opfile, ind)
+            subprocess.call(["python3","z3Optimizer.py"])
+            z3File = open(f'z3outputFile{ind}', "r")
+            if(z3File.read() == "unsat"):
+                d+=1
+            else:
+                break
+        ind+=1
