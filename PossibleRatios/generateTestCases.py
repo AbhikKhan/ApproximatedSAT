@@ -21,8 +21,6 @@ def get_all_possible_values(number_of_variables, output_file):
         solver.add(var2 == var1*precison)
         pR.append(var2)
 
-    # var = Real('err')
-    # solver.add(And(var>= 0.001, var<= 0.01))
     # Adding constraint
     solver.add(Sum(pR) == 1*precison)
 
@@ -50,10 +48,12 @@ def get_all_possible_values(number_of_variables, output_file):
             print(variables_str)
 
             # Add constraint to exclude the current solution and it's permutations
+            values = [model.eval(var).as_long() for var in pR]
             allPermuations = list(permutations(values))
             for per in allPermuations:
-                constraint = Or(*[var != val for var, val in zip(R, per)])
+                constraint = Or(*[var != val for var, val in zip(pR, per)])
                 solver.add(constraint)
+
 
 
 # Get and print all possible values
