@@ -2,6 +2,7 @@ from NTM import *
 import createTree
 
 import subprocess
+import random
 
 def initOPT(opFile):
     opFile.write("import sys\n")
@@ -12,7 +13,7 @@ def initOPT(opFile):
 
 def finishOPT(opFile, ind):
     opFile.write("\nstartTime = time.time()\n")
-    opFile.write(f"fp = open(\'z3outputFile{ind}\',\'w\')\n")
+    opFile.write(f"fp = open(\'./z3OutputFiles/z3outputFile{ind}\',\'w\')\n")
     opFile.write("if s.check() == sat:\n")
     opFile.write("\tlst = s.model()\n")
     opFile.write("\tfor i in lst:\n")
@@ -150,57 +151,36 @@ def setTarget(target, err, R, N, d, opfile):
         opfile.write(condition2)
 
 if __name__ == "__main__":
-    targetRatios = [[0.30, 0.23, 0.24, 0.23],
-                   [0.25, 0.30, 0.45],
-                   [0.35, 0.50, 0.15],
-                   [0.25, 0.38, 0.25, 0.12],
-                   [0.17, 0.27, 0.31, 0.25],
-                   [0.15, 0.45, 0.18, 0.22],
-                   [0.18, 0.39, 0.23, 0.2],
-                   [0.55,0.15,0.15,0.15],
-                   [0.54,0.15,0.16,0.15],
-                    [0.15,0.53,0.17,0.15],
-                    [0.15,0.5,0.2,0.15],
-                    [0.15,0.49,0.21,0.15],
-                    [0.15,0.46,0.24,0.15],
-                    [0.16,0.17,0.52,0.15],
-                    [0.22,0.17,0.46,0.15],
-                    [0.25,0.17,0.43,0.15],
-                    [0.19,0.17,0.49,0.15],
-                    [0.27,0.17,0.41,0.15],
-                    [0.42,0.17,0.26,0.15],
-                    [0.33,0.17,0.35,0.15],
-                    [0.44,0.18,0.23,0.15],
-                    [0.51,0.18,0.16,0.15],
-                    [0.43,0.18,0.24,0.15],
-                    [0.38,0.18,0.29,0.15],
-                    [0.25,0.35,0.25,0.15],
-                    [0.16,0.44,0.25,0.15],
-                    [0.28,0.32,0.25,0.15],
-                    [0.31,0.16,0.38,0.15],
-                    [0.42,0.23,0.20,0.15],
-                    [0.3,0.31,0.2,0.19],
-                ]
-    errs = [0.007, 0.007, 0.003, 0.009, 0.01, 0.015, 0.006, 0.006, 0.01, 0.002, 0.002, 0.0035
-            , 0.004, 0.0052, 0.03, 0.009, 0.007, 0.004, 0.007, 0.006, 0.0054, 0.0034, 0.006
-            , 0.003, 0.002, 0.003, 0.007, 0.004, 0.005, 0.007]
+    
     ind = 0
-    for targetRatio, err in zip(targetRatios, errs):
-        N, R, d = 4, len(targetRatio), 3
-        while d< 10:
-            file = "z3Optimizer.py"
-            opfile = open(file, "w+")
-            initOPT(opfile)
-            addvariables(d, R, opfile)
-            nonNegativityConstraints(d, N, R, opfile)
-            mixerConsistencyConstraints(d, N, R, opfile)
-            setTarget(targetRatio, err, R, N, d, opfile)
-            finishOPT(opfile, ind)
-            subprocess.call(["python3","z3Optimizer.py"])
-            z3File = open(f'z3outputFile{ind}', "r")
-            if(z3File.read() == "unsat"):
-                d+=1
-            else:
-                createTree.createTree(f'z3outputFile{ind}', f'OutputTree{ind}', d+1, N)
-                break
-        ind+=1
+    inputFile = 'cleanTargetRatio.txt'
+    with open(inputFile, 'r') as ip:
+        # Read the input file line by line
+        line = ip.readline()
+        while line:
+            # Cleaning the values
+            all = [float(val) for val in line.split(',')]
+            
+            targetRatio = all[:-1] # Target ratio
+            err = all[-1] # error tolerance
+
+            N, R, d = 4, len(targetRatio), 3
+            while d< 10:
+                file = "z3Optimizer.py"
+                opfile = open(file, "w+")
+                initOPT(opfile)
+                addvariables(d, R, opfile)
+                nonNegativityConstraints(d, N, R, opfile)
+                mixerConsistencyConstraints(d, N, R, opfile)
+                setTarget(targetRatio, err, R, N, d, opfile)
+                finishOPT(opfile, ind)
+                subprocess.call(["python3","z3Optimizer.py"])
+                z3File = open(f'./z3OutputFiles/z3outputFile{ind}', "r")
+                if(z3File.read() == "unsat"):
+                    d+=1
+                else:
+                    createTree.createTree(f'./z3OutputFiles/z3outputFile{ind}', f'OutputTree{ind}', d+1, N)
+                    break
+            ind+=1
+            
+            line = ip.readline()
