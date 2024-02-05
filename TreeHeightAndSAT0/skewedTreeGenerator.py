@@ -179,7 +179,7 @@ if __name__ == "__main__":
                 if(z3File.read() == "unsat"):
                     d+=1
                 else:
-                    createTree.createTree(f'./z3OutputFiles/z3outputFile{ind}', f'OutputTree{ind}', d+1, N)
+                    createTree.createTree(f'./z3OutputFiles/z3outputFile{ind}', f'OutputTree{ind}', d, N, R)
                     break
             ind+=1
             

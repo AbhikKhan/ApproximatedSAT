@@ -17,13 +17,13 @@ def createRoot(rootList, x, W, ind):
         rootList.append(children)
     return rootList
 
-def createTree(fileName, outputFileName, depth, N):
+def createTree(fileName, outputFileName, depth, N, r):
     R = []
     x = []
-    W = [4]*(depth-1)
-    for _ in range(depth-1):
-        R.append([0]*N)
-        x.append([0]*N)
+    W = [4]*(depth)
+    for _ in range(depth):
+        R.append([0]*r)
+        x.append([0]*r)
 
     with open(fileName, "r+") as fp:
         lines = fp.read().split('\n')
@@ -49,4 +49,4 @@ def createTree(fileName, outputFileName, depth, N):
 
 
 if __name__ == "__main__":
-    createTree('z3outputFile1', 'OutputTree1', 4, 4)
+    createTree('z3outputFile1', 'OutputTree1', 3, 4, 4)
