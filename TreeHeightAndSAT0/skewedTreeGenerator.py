@@ -159,6 +159,10 @@ if __name__ == "__main__":
         line = ip.readline()
         while line:
             # Cleaning the values
+            if ind < 328:
+                ind+=1
+                line = ip.readline()
+                continue
             all = [float(val) for val in line.split(',')]
             
             targetRatio = all[:-1] # Target ratio
