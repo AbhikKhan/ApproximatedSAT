@@ -1,0 +1,2 @@
+Need to make sure wheather it is sat or not
+if unsat then there will be no output tree to merge and we might get an error

@@ -1,0 +1,4 @@
+1. LAFCA_DFL    need to make grid global
+                need to handle more than one sharing of intermediate fluids
+                need to write blockage handling from scratch
+                
