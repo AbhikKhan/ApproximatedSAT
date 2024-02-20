@@ -3,15 +3,12 @@ import networkx as nx
 from collections import deque
 import pandas as pd
 from openpyxl import load_workbook
-import csv
 
-import PathWayTree as PWT
-from showImages import *
+from .PathWayTree import *
+from .showImages import *
 
-import parseTree as PT
-
-from NTM import *
-from LAFCADFL import *
+from .NTM import *
+from .LAFCADFL import *
 
 __Id = 1
 __IdStorage = 1
@@ -208,7 +205,17 @@ def ratioConsistencyConstraintsWithLinerarization(G,opFile,factorList,ratioList)
                 opString = 's.add(Implies((' + edgeVar + ' == ' + str(loopVar) + '), (' + t_i  \
                                                 + ' == ' + str(loopVar) + '*' + reagentVar + ')))\n'
                 opFile.write(opString)  
-            opFile.write('\n')           
+            opFile.write('\n')
+
+    opstring = "waste = Int('waste')\n"
+    opFile.write(opstring)
+    opstring = "s.add(waste == "
+    for (u,v) in G.edges():
+        opstring += "4-"+G[u][v]['edgeVar'][0] + "+"
+        
+    opstring = opstring[:-1] + ")\n"
+    opFile.write(opstring)
+
         
 def mixerConsistencyConstraints(G,opFile):   
     #For each node generate clauses --- CHANGE REQUIRE for multilevel sharing
@@ -530,15 +537,36 @@ def getPlacementAndTimestamp(root):
     K, B, L = KBL(assignment, mixture, timeStamp)
     return area, K, B, L
 
+
+def parseZ3opFile(file, N):
+    '''
+        Returns waste and reagent usage by parsing z3output file
+    '''
+    waste = 0
+    reagentUsage = [0]*N
+    with open(file, 'r') as ipfile:
+        line = ipfile.readline()
+        while line:
+            all = line.split(' = ')
+            if all[0] == 'waste':
+                waste = int(all[1])
+            elif all[0][0] == 'r':
+                # print(all[0][:-1], all[1])
+                reagentUsage[int(all[0][-1])-1] += int(all[1])
+            line = ipfile.readline()
+    return waste, reagentUsage
+
+
+
 def floSPA(root, ratioList, factorList, name):
     '''
         Use floSPA to generate the mixing tree.
     '''
     # Create skeleton tree
-    G = PWT.createSkeletonTreeNew(root)
-    PWT.putIndexInSkeletonTree(G)
-    PWT.putHeightInSkeletonTree(G)
-    PWT.printTreeAfterAdding_lih(G,"skeletonTreeAfterAdding_lih.dot")
+    G = createSkeletonTreeNew(root)
+    putIndexInSkeletonTree(G)
+    putHeightInSkeletonTree(G)
+    printTreeAfterAdding_lih(G,"skeletonTreeAfterAdding_lih.dot")
     
     # Add floSPA constraints
     annotatePathWayTree(G, ratioList)
@@ -549,31 +577,35 @@ def floSPA(root, ratioList, factorList, name):
 
     mixerConsistencyConstraints(G,opFile)
     nonNegativityConstraints(G,opFile)
-    if name[-5] == '1':
-        limitEdges(opFile)
+    # if name[-5] == '1':
+    #     limitEdges(opFile)
     setTarget(G,opFile,ratioList)
     finishOPT(G,opFile)
     subprocess.call(["python3","z3clauses.py"])
+    # To get waste and reagent usage
+    waste, reagentUsage = parseZ3opFile('z3opFile', len(ratioList))
+    print(waste, reagentUsage)
+
     annotateMixingTreeWithValue(G,'z3opFile')
     printTreeAfterAnnotation(G, 'skeletonTreeAfterAnnotation.dot')
     subprocess.check_call(['dot', '-Tpng', 'skeletonTreeAfterAnnotation.dot', '-o', name])
     moreThanOneChild.clear()
 
+    return waste, reagentUsage
     # create tree from the dot file
     # newroot = PT.getRoot("skeletonTreeAfterAnnotation.dot")
     # A, K, B, L = getPlacementAndTimestamp(newroot)
 
     # return A, K, B, L
 
-def skeletonTreeGeneration(ratioList, factorList):
+def skeletonTreeGeneration(ratioList, factorList, outputFilePath):
 
     input_ratio = getInputRatio(ratioList)
-    name = getName(ratioList)
 
     root0 = genMix(input_ratio, 4)
     # saveTree(root0, f'./outputGenmix/{name}.png', 'GenMix')
     
-    floSPA(root0, ratioList, factorList, f'./outputFloSPA/{name}.png')
+    return floSPA(root0, ratioList, factorList, outputFilePath)
     # Agf, Kgf, Bgf, Lgf = floSPA(root0, ratioList, factorList, f'./outputFloSPA/{name}_0.png')
     
     # save the data
@@ -593,5 +625,6 @@ if __name__ == '__main__':
     ]
     for i in range(len(real)):
         print(real[i])
-        skeletonTreeGeneration(real[i], fact[i])
+        name = getName(real[i])
+        waste, reagentUsage = skeletonTreeGeneration(real[i], fact[i], f'./outputFloSPA/{name}.png')
     # skeletonTreeGeneration([27, 25, 57, 69, 78], [4, 4, 4, 4, 4])
