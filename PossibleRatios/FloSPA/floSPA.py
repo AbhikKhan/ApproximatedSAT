@@ -584,7 +584,7 @@ def floSPA(root, ratioList, factorList, name):
     subprocess.call(["python3","z3clauses.py"])
     # To get waste and reagent usage
     waste, reagentUsage = parseZ3opFile('z3opFile', len(ratioList))
-    print(waste, reagentUsage)
+    # print(waste, reagentUsage)
 
     annotateMixingTreeWithValue(G,'z3opFile')
     printTreeAfterAnnotation(G, 'skeletonTreeAfterAnnotation.dot')
