@@ -40,9 +40,10 @@ def get_all_possible_values(ratio, err, output_file, depth):
 
             opstring = opstring[:-1]+"\n"
             opfile.write(opstring)
+
             # Print the values dynamically based on the number of variables
-            variables_str = ', '.join(f'R{i+1} = {val}' for i, val in enumerate(values))
-            print(variables_str)
+            # variables_str = ', '.join(f'R{i+1} = {val}' for i, val in enumerate(values))
+            # print(variables_str)
 
             # Add constraint to exclude the current solution and it's permutations
             allPermuations = list(permutations(values))
@@ -55,8 +56,8 @@ def get_all_possible_values(ratio, err, output_file, depth):
 # Get and print all possible values
 def main():
     ind = 0
-    k = 3
-    inputFile = 'ip.txt'
+    k = 5
+    inputFile = 'cleanTargetRatio.txt'
     with open(inputFile, 'r') as ip:
         # Read the input file line by line
         line = ip.readline()
@@ -72,20 +73,21 @@ def main():
                 line = ip.readline()
                 continue
 
-            fileName = 'output.txt'
+            fileName = f'output_{k}.txt'
             for d in range(3, 7):
                 generatedRatios = get_all_possible_values(ratio, err, fileName, d)
                 if generatedRatios < 20:
+                    print("# generated ratio:",20-generatedRatios)
                     '''
                         Now as we have some target ratios (at most 20) we can
                         Gnerate FloSPA tree for all of them and get max and min ragent usage
                         Later we can coompare with our result.
                     '''
                     minWaste, minSumReagentUsage, maxWaste, maxSumReagentUsage = 4<<10, 4<<10, 0, 0
-                    minReagentUsage = []
-                    maxReagentUsage = []
-                    ratioFormin = []
-                    ratioFormax = []
+                    minReagentUsage = [-1]*k
+                    maxReagentUsage = [-1]*k
+                    ratioFormin = [-1]*k
+                    ratioFormax = [-1]*k
                     with open(fileName, 'r') as ratioFile:
                         ratio = ratioFile.readline()
                         while ratio:
@@ -93,6 +95,11 @@ def main():
                             fact = [4]*len(targetRatio)
                             name = getName(targetRatio)
                             waste, reagentUsage = skeletonTreeGeneration(targetRatio, fact, f"./FloSPA-op/{name}.png")
+                            print(waste, reagentUsage)
+                            # In case of unsat
+                            if waste == -1:
+                                ratio = ratioFile.readline()
+                                continue
                             totalReagentUsage = sum(reagentUsage)
                             # Total reagent usage is high
                             if totalReagentUsage > maxSumReagentUsage:
@@ -110,7 +117,6 @@ def main():
                     with open(f'flospa_output_{k}.xls', 'a', newline='') as csvfile:
                         writer = csv.writer(csvfile)
                         values = [ind, *ratioFormin, *minReagentUsage, minWaste, *ratioFormax, *maxReagentUsage, maxWaste]
-                        print(values)
                         writer.writerow(values)
                     break
             line = ip.readline()

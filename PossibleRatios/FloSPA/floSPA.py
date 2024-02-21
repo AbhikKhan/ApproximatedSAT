@@ -55,13 +55,14 @@ def finishOPT(G,opFile):
     opString = opString[:-2] + ")\n"
     opFile.write(opString)
     opFile.write("startTime = time.time()\n")
+    opFile.write("fp = open(\'z3opFile\',\'w\')\n")
     opFile.write("if s.check() == sat:\n")
     opFile.write("\tprint(\"Total reagents = \", totalReagents.value())\n")
-    opFile.write("\tfp = open(\'z3opFile\',\'w\')\n")
     opFile.write("\tlst = s.model()\n")
     opFile.write("\tfor i in lst:\n")
     opFile.write("\t    fp.write(str(i) + \" = \" + str(s.model()[i]) + '\\n')\n")    
     opFile.write("else:\n")
+    opFile.write("\tfp.write('unsat')\n")
     opFile.write("\tprint('unsat')\n")
     opFile.write('endTime = time.time()\n')
     opFile.write('executionTime = endTime - startTime\n')
@@ -138,8 +139,9 @@ def addvariables(G,opFile):
         
     opString1 = opString1[:-2] + " "
     opString2 = opString2[:-1] + "')# Added edgeVariables\n\n"
-    opFile.write(opString1)
-    opFile.write(opString2)
+    if len(G.edges()) > 0:
+        opFile.write(opString1)
+        opFile.write(opString2)
           
 def ratioConsistencyConstraintsWithLinerarization(G,opFile,factorList,ratioList):
     numRatio = len(ratioList)
@@ -207,15 +209,6 @@ def ratioConsistencyConstraintsWithLinerarization(G,opFile,factorList,ratioList)
                 opFile.write(opString)  
             opFile.write('\n')
 
-    opstring = "waste = Int('waste')\n"
-    opFile.write(opstring)
-    opstring = "s.add(waste == "
-    for (u,v) in G.edges():
-        opstring += "4-"+G[u][v]['edgeVar'][0] + "+"
-        
-    opstring = opstring[:-1] + ")\n"
-    opFile.write(opstring)
-
         
 def mixerConsistencyConstraints(G,opFile):   
     #For each node generate clauses --- CHANGE REQUIRE for multilevel sharing
@@ -253,7 +246,8 @@ def nonNegativityConstraints(G,opFile):
         edgeVar = G[x][y]['edgeVar'][0]
         opString += edgeVar + " >= 0, " + edgeVar + " <= " + str(G.nodes[y]['mixerSize']-1) + ", "
     opString = opString[:-2] + "))\n"
-    opFile.write(opString)
+    if len(G.edges()) > 0:
+        opFile.write(opString)
 
 # getNewTempVarForStorage()    
 def storageConstraint(G, opFile, k):
@@ -546,12 +540,16 @@ def parseZ3opFile(file, N):
     reagentUsage = [0]*N
     with open(file, 'r') as ipfile:
         line = ipfile.readline()
+        # print(line)
+        if line == 'unsat':
+            return -1, reagentUsage
         while line:
             all = line.split(' = ')
-            if all[0] == 'waste':
-                waste = int(all[1])
+            if all[0][0] == 'w':
+                shared = int(all[1])
+                if shared > 0:
+                    waste += 4-shared
             elif all[0][0] == 'r':
-                # print(all[0][:-1], all[1])
                 reagentUsage[int(all[0][-1])-1] += int(all[1])
             line = ipfile.readline()
     return waste, reagentUsage
@@ -584,11 +582,10 @@ def floSPA(root, ratioList, factorList, name):
     subprocess.call(["python3","z3clauses.py"])
     # To get waste and reagent usage
     waste, reagentUsage = parseZ3opFile('z3opFile', len(ratioList))
-    # print(waste, reagentUsage)
-
-    annotateMixingTreeWithValue(G,'z3opFile')
-    printTreeAfterAnnotation(G, 'skeletonTreeAfterAnnotation.dot')
-    subprocess.check_call(['dot', '-Tpng', 'skeletonTreeAfterAnnotation.dot', '-o', name])
+    if waste != -1:
+        annotateMixingTreeWithValue(G,'z3opFile')
+        printTreeAfterAnnotation(G, 'skeletonTreeAfterAnnotation.dot')
+        subprocess.check_call(['dot', '-Tpng', 'skeletonTreeAfterAnnotation.dot', '-o', name])
     moreThanOneChild.clear()
 
     return waste, reagentUsage
