@@ -22,6 +22,7 @@ def get_all_possible_values(ratio, err, output_file, depth):
         solver.add(R[i] - ratio[i]*(4**depth) <= err*(4**depth))
         solver.add(ratio[i]*(4**depth) - R[i] <= err*(4**depth))
     solver.add(Sum(R) == 4**depth)
+    iter = 20
 
     iter = 20
     with open(output_file, 'w+') as opfile:
@@ -53,10 +54,24 @@ def get_all_possible_values(ratio, err, output_file, depth):
 
     return iter
 
+def copy_file(source_file, destination_file):
+    try:
+        # Open the source file in read mode
+        with open(source_file, 'r') as source:
+            # Read the content of the source file
+            content = source.read()
+            
+        # Open the destination file in write mode
+        with open(destination_file, 'w+') as destination:
+            # Write the content to the destination file
+            destination.write(content)
+    except Exception as e:
+        print("An error occurred:", e)
+
 # Get and print all possible values
 def main():
     ind = 0
-    k = 5
+    k = 4
     inputFile = 'cleanTargetRatio.txt'
     with open(inputFile, 'r') as ip:
         # Read the input file line by line
@@ -88,6 +103,10 @@ def main():
                     maxReagentUsage = [-1]*k
                     ratioFormin = [-1]*k
                     ratioFormax = [-1]*k
+
+                    maxSrc = f'./z3for{k}/{ind}max'
+                    minSrc = f'./z3for{k}/{ind}min'
+
                     with open(fileName, 'r') as ratioFile:
                         ratio = ratioFile.readline()
                         while ratio:
@@ -107,12 +126,14 @@ def main():
                                 maxWaste = waste
                                 maxReagentUsage = reagentUsage
                                 ratioFormax = targetRatio
+                                copy_file('./z3opFile', maxSrc)
                             # Tootal regent usage is low
                             if totalReagentUsage < minSumReagentUsage:
                                 minSumReagentUsage = totalReagentUsage
                                 minWaste = waste
                                 minReagentUsage = reagentUsage
                                 ratioFormin = targetRatio
+                                copy_file('./z3opFile', minSrc)
                             ratio = ratioFile.readline()
                     with open(f'flospa_output_{k}.xls', 'a', newline='') as csvfile:
                         writer = csv.writer(csvfile)
@@ -121,7 +142,6 @@ def main():
                     break
             line = ip.readline()
             ind+=1
-    
 
 # If the it is called from this function
 if __name__ == "__main__":
