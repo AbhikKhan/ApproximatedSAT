@@ -1,7 +1,7 @@
 from z3 import *
 from itertools import permutations
 import csv
-
+import xlrd
 from FloSPA import *
 
 def get_all_possible_values(ratio, err, output_file, depth):
@@ -71,7 +71,7 @@ def copy_file(source_file, destination_file):
 # Get and print all possible values
 def main():
     ind = 0
-    k = 4
+    k = 3
     inputFile = 'cleanTargetRatio.txt'
     with open(inputFile, 'r') as ip:
         # Read the input file line by line
@@ -103,46 +103,80 @@ def main():
                     maxReagentUsage = [-1]*k
                     ratioFormin = [-1]*k
                     ratioFormax = [-1]*k
-
+                    maxMixer, minMixer = 1, 1
+                    # z3 filename to store max and min mixers z3Files
                     maxSrc = f'./z3for{k}/{ind}max'
                     minSrc = f'./z3for{k}/{ind}min'
 
                     with open(fileName, 'r') as ratioFile:
                         ratio = ratioFile.readline()
+                        # if ratio is not empty
                         while ratio:
                             targetRatio = [int(val) for val in ratio.split(',')] # Integer values derived after approximation
                             fact = [4]*len(targetRatio)
                             name = getName(targetRatio)
-                            waste, reagentUsage = skeletonTreeGeneration(targetRatio, fact, f"./FloSPA-op/{name}.png")
-                            print(waste, reagentUsage)
+                            waste, mixer, reagentUsage = skeletonTreeGeneration(targetRatio, fact, f"./FloSPA-op/{name}.png")
+                            print(waste, mixer, reagentUsage)
                             # In case of unsat
                             if waste == -1:
                                 ratio = ratioFile.readline()
                                 continue
                             totalReagentUsage = sum(reagentUsage)
+
                             # Total reagent usage is high
                             if totalReagentUsage > maxSumReagentUsage:
                                 maxSumReagentUsage = totalReagentUsage
                                 maxWaste = waste
                                 maxReagentUsage = reagentUsage
+                                maxMixer = mixer
                                 ratioFormax = targetRatio
                                 copy_file('./z3opFile', maxSrc)
-                            # Tootal regent usage is low
+
+                            # Total regent usage is low
                             if totalReagentUsage < minSumReagentUsage:
                                 minSumReagentUsage = totalReagentUsage
                                 minWaste = waste
                                 minReagentUsage = reagentUsage
+                                minMixer = mixer
                                 ratioFormin = targetRatio
                                 copy_file('./z3opFile', minSrc)
                             ratio = ratioFile.readline()
+                    # After generating all possible trees for the particular target ratio store the values in excel file
                     with open(f'flospa_output_{k}.xls', 'a', newline='') as csvfile:
                         writer = csv.writer(csvfile)
-                        values = [ind, *ratioFormin, *minReagentUsage, minWaste, *ratioFormax, *maxReagentUsage, maxWaste]
+                        values = [ind, *ratioFormin, *minReagentUsage, minWaste, minMixer, *ratioFormax, *maxReagentUsage, maxWaste, maxMixer]
                         writer.writerow(values)
                     break
             line = ip.readline()
             ind+=1
 
+
+def getLoadingCycle():
+    k = 5
+    # Read excel file to get mixing ratios
+    with open(f'flospa_output_{k}.xls', 'r') as fp:
+        line = fp.readline()
+        line = fp.readline()
+        while line:
+            values = [val for val in line.split(',')]
+            ID = int(values[0])
+            if ID<= 1043:
+                line = fp.readline()
+                continue
+            minTarget = [int(val) for val in values[1:6]]
+            maxTarget = [int(val) for val in values[13:18]]
+            print(minTarget, maxTarget)
+            # Use getKBL with idmax idmin z3opFile to get KBL and all parameters.
+            Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getKBL(minTarget, f'z3for{k}/{ID}min')
+            Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getKBL(maxTarget, f'z3for{k}/{ID}max')
+            with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
+                writer = csv.writer(opfile)
+                values = [ID,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
+                writer.writerow(values)
+            line = fp.readline()
+
+
 # If the it is called from this function
 if __name__ == "__main__":
-    main()
+    getLoadingCycle()
+    # main()

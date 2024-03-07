@@ -6,6 +6,7 @@ from openpyxl import load_workbook
 
 from .PathWayTree import *
 from .showImages import *
+from .parseTree import *
 
 from .NTM import *
 from .LAFCADFL import *
@@ -424,16 +425,18 @@ def getMix(root):
     return mixture
 
 def boundingbox(assignments):
+    uniqueCells = set()
     x_max, y_max, x_min, y_min = 0, 0, 15, 15
     for mix in assignments:
         for cell in assignments[mix]:
+            uniqueCells.add(''.join(str(coord) for coord in cell))
             x_max = max(x_max, cell[0])
             x_min = min(x_min, cell[0])
             y_max = max(y_max, cell[1])
             y_min = min(y_min, cell[1])
     
     area = (x_max - x_min + 1) * (y_max - y_min + 1)
-    return area
+    return len(uniqueCells), area
             
 def KBL(assignment, mixtures, timestamp):
     '''
@@ -526,34 +529,55 @@ def getPlacementAndTimestamp(root):
             else:
                 timeStamp[item[1]].append(item[0])
 
-    area = boundingbox(assignment)
+    BB, area = boundingbox(assignment)
     print("area ", area)
     K, B, L = KBL(assignment, mixture, timeStamp)
-    return area, K, B, L
+    return BB, area, K, B, L
 
 
 def parseZ3opFile(file, N):
     '''
-        Returns waste and reagent usage by parsing z3output file
+        Returns waste, mixer and reagent usage by parsing z3output file
     '''
     waste = 0
     reagentUsage = [0]*N
+    mixer = 1
     with open(file, 'r') as ipfile:
         line = ipfile.readline()
-        # print(line)
         if line == 'unsat':
-            return -1, reagentUsage
+            return -1, -1, reagentUsage
         while line:
             all = line.split(' = ')
             if all[0][0] == 'w':
                 shared = int(all[1])
+                # print(shared)
                 if shared > 0:
                     waste += 4-shared
+                    mixer += 1
             elif all[0][0] == 'r':
                 reagentUsage[int(all[0][-1])-1] += int(all[1])
             line = ipfile.readline()
-    return waste, reagentUsage
+    return waste, mixer, reagentUsage
 
+
+# To get KBL parameter
+def getKBL(ratioList, z3fileName):
+    input_ratio = getInputRatio(ratioList)
+    root = genMix(input_ratio, 4)
+    # Create skeleton tree
+    G = createSkeletonTreeNew(root)
+    putIndexInSkeletonTree(G)
+    putHeightInSkeletonTree(G)
+    printTreeAfterAdding_lih(G,"skeletonTreeAfterAdding_lih.dot")
+    
+    # Add floSPA constraints
+    annotatePathWayTree(G, ratioList)
+    annotateMixingTreeWithValue(G, z3fileName)
+    printTreeAfterAnnotation(G, 'skeletonTreeAfterAnnotation.dot')
+    newroot = getRoot("skeletonTreeAfterAnnotation.dot")
+    A, BB, K, B, L = getPlacementAndTimestamp(newroot)
+
+    return A, BB, K, B, L
 
 
 def floSPA(root, ratioList, factorList, name):
@@ -575,42 +599,27 @@ def floSPA(root, ratioList, factorList, name):
 
     mixerConsistencyConstraints(G,opFile)
     nonNegativityConstraints(G,opFile)
-    # if name[-5] == '1':
-    #     limitEdges(opFile)
     setTarget(G,opFile,ratioList)
     finishOPT(G,opFile)
     subprocess.call(["python3","z3clauses.py"])
     # To get waste and reagent usage
-    waste, reagentUsage = parseZ3opFile('z3opFile', len(ratioList))
+    waste, mixer, reagentUsage = parseZ3opFile('z3opFile', len(ratioList))
     if waste != -1:
         annotateMixingTreeWithValue(G,'z3opFile')
         printTreeAfterAnnotation(G, 'skeletonTreeAfterAnnotation.dot')
         subprocess.check_call(['dot', '-Tpng', 'skeletonTreeAfterAnnotation.dot', '-o', name])
     moreThanOneChild.clear()
 
-    return waste, reagentUsage
-    # create tree from the dot file
-    # newroot = PT.getRoot("skeletonTreeAfterAnnotation.dot")
-    # A, K, B, L = getPlacementAndTimestamp(newroot)
+    return waste, mixer, reagentUsage
 
-    # return A, K, B, L
 
+"""
+    To create skeletonTree from from ratio list
+"""
 def skeletonTreeGeneration(ratioList, factorList, outputFilePath):
-
     input_ratio = getInputRatio(ratioList)
-
-    root0 = genMix(input_ratio, 4)
-    # saveTree(root0, f'./outputGenmix/{name}.png', 'GenMix')
-    
-    return floSPA(root0, ratioList, factorList, outputFilePath)
-    # Agf, Kgf, Bgf, Lgf = floSPA(root0, ratioList, factorList, f'./outputFloSPA/{name}_0.png')
-    
-    # save the data
-    # file_path = 'results.xlsx'
-    
-    # file = open(file_path, 'a+')
-    # file = csv.writer(file)
-    # file.writerow([ratioList, Agf ,Kgf, Bgf, Lgf])
+    root = genMix(input_ratio, 4)
+    return floSPA(root, ratioList, factorList, outputFilePath)
 
 
 if __name__ == '__main__':
@@ -623,5 +632,5 @@ if __name__ == '__main__':
     for i in range(len(real)):
         print(real[i])
         name = getName(real[i])
-        waste, reagentUsage = skeletonTreeGeneration(real[i], fact[i], f'./outputFloSPA/{name}.png')
-    # skeletonTreeGeneration([27, 25, 57, 69, 78], [4, 4, 4, 4, 4])
+        waste, mixer, reagentUsage = skeletonTreeGeneration(real[i], fact[i], f'./outputFloSPA/{name}.png')
+        print(getKBL(real[i], 'z3opFile'))

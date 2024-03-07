@@ -84,8 +84,6 @@ s.add(1*r_3_1_1  == R_3_1_1)
 s.add(1*r_3_1_2  == R_3_1_2)
 s.add(1*r_3_1_3  == R_3_1_3)
 
-waste = Int('waste')
-s.add(waste == 4-w_2_1_1_1+4-w_2_2_1_1+4-w_3_1_2_2)
 s.add(Or(r_1_1_1 + r_1_1_2 + r_1_1_3 + w_2_1_1_1 + w_2_2_1_1  == 4, r_1_1_1 + r_1_1_2 + r_1_1_3 + w_2_1_1_1 + w_2_2_1_1  == 0))
 s.add(Or(r_2_1_1 + r_2_1_2 + r_2_1_3  == 4, r_2_1_1 + r_2_1_2 + r_2_1_3  == 0))
 s.add(w_2_1_1_1  <= 4)
@@ -103,13 +101,14 @@ s.add(And(R_1_1_1 == 13, R_1_1_2 == 29, R_1_1_3 == 22))
 
 totalReagents = s.minimize(r_1_1_1 + r_1_1_2 + r_1_1_3 + r_2_1_1 + r_2_1_2 + r_2_1_3 + r_2_2_1 + r_2_2_2 + r_2_2_3 + r_3_1_1 + r_3_1_2 + r_3_1_3 )
 startTime = time.time()
+fp = open('z3opFile','w')
 if s.check() == sat:
 	print("Total reagents = ", totalReagents.value())
-	fp = open('z3opFile','w')
 	lst = s.model()
 	for i in lst:
 	    fp.write(str(i) + " = " + str(s.model()[i]) + '\n')
 else:
+	fp.write('unsat')
 	print('unsat')
 endTime = time.time()
 executionTime = endTime - startTime

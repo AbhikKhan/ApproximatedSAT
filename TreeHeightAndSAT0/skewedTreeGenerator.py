@@ -151,7 +151,6 @@ def setTarget(target, err, R, N, d, opfile):
         opfile.write(condition2)
 
 if __name__ == "__main__":
-    
     ind = 0
     inputFile = 'cleanTargetRatio.txt'
     with open(inputFile, 'r') as ip:
