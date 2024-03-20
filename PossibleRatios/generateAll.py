@@ -1,7 +1,7 @@
 from z3 import *
 from itertools import permutations
 import csv
-import xlrd
+import os
 from FloSPA import *
 
 def get_all_possible_values(ratio, err, output_file, depth):
@@ -151,27 +151,92 @@ def main():
             ind+=1
 
 
-def getLoadingCycle():
-    k = 5
-    # Read excel file to get mixing ratios
-    with open(f'flospa_output_{k}.xls', 'r') as fp:
-        line = fp.readline()
+
+def createList(W, reagents, level, childID, weight, tree):
+    print(level, childID)
+    child = [weight]
+    for r in reagents[level][childID]:
+        child += [f'r{r}']*reagents[level][childID][r]
+    
+    if level in W:
+        if childID in W[level]:
+            for level_to in W[level][childID]:
+                for child_to in W[level][childID][level_to]:
+                    createList(W, reagents, level_to, child_to, W[level][childID][level_to][child_to], child)
+    tree.append(child)
+
+    return tree
+
+def createTree(file):
+    W = dict()
+    reagents = dict()
+    with open(file, 'r') as fp:
         line = fp.readline()
         while line:
-            values = [val for val in line.split(',')]
-            ID = int(values[0])
+            line = line.split(' = ')
+            vals = [int(val) for val in line[0].split('_')[1:]]
+            weight = int(line[1])
             
-            minTarget = [int(val) for val in values[1:6]]
-            maxTarget = [int(val) for val in values[13:18]]
-            print(minTarget, maxTarget)
-            # Use getKBL with idmax idmin z3opFile to get KBL and all parameters.
-            Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getKBL(minTarget, f'z3for{k}/{ID}min')
-            Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getKBL(maxTarget, f'z3for{k}/{ID}max')
-            with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
-                writer = csv.writer(opfile)
-                values = [ID,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
-                writer.writerow(values)
+            if line[0][0]=='w':
+                # W_levelFrom_childFrom_levelTo_childeTo
+                level_from, child_from, level_to, child_to = vals
+                if level_to not in W:
+                    W[level_to] = dict()
+                if child_to not in W[level_to]:
+                    W[level_to][child_to] = dict()
+                if level_from not in W[level_to][child_to]:
+                    W[level_to][child_to][level_from] = dict()
+                if child_from not in W[level_to][child_to][level_from]:
+                    W[level_to][child_to][level_from][child_from] = weight
+            elif line[0][0]=='r':
+                # r_level_child_reagents
+                level, child, r = vals
+                if level not in reagents:
+                    reagents[level] = dict()
+                if child not in reagents[level]:
+                    reagents[level][child] = dict()
+                if r not in reagents[level][child]:
+                    reagents[level][child][r] = weight
             line = fp.readline()
+
+    root = createList(W, reagents, 1, 1, 4, [])       
+    print(root)
+    return root
+
+
+def getLoadingCycle():
+    k = 5
+    directory = f'/z3for{k}/'
+    low, high = 999, 1798
+    for i in range(low, high+1):
+        root1 = createTree(directory+f'{i}min')
+        root2 = createTree(directory+f'{i}max')
+        Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getPlacementAndTimestamp(root1)
+        Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getPlacementAndTimestamp(root2)
+        values = [i,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
+        with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
+            writer = csv.writer(opfile)
+            writer.writerow(values)
+
+    # Read excel file to get mixing ratios
+    # with open(f'z3for{k}', 'r') as fp:
+    #     line = fp.readline()
+    #     line = fp.readline()
+    #     while line:
+    #         values = [val for val in line.split(',')]
+    #         ID = int(values[0])
+            
+    #         minTarget = [int(val) for val in values[1:6]]
+    #         maxTarget = [int(val) for val in values[13:18]]
+    #         print(minTarget, maxTarget)
+    #         # Use getKBL with idmax idmin z3opFile to get KBL and all parameters.
+    #         Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getKBL(minTarget, f'z3for{k}/{ID}min')
+    #         Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getKBL(maxTarget, f'z3for{k}/{ID}max')
+    #         with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
+    #             writer = csv.writer(opfile)
+    #             values = [ID,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
+    #             writer.writerow(values)
+    #         line = fp.readline()
 
 
 # If the it is called from this function
