@@ -71,7 +71,7 @@ def copy_file(source_file, destination_file):
 # Get and print all possible values
 def main():
     ind = 0
-    k = 3
+    k = 5
     inputFile = 'cleanTargetRatio.txt'
     with open(inputFile, 'r') as ip:
         # Read the input file line by line
@@ -160,9 +160,7 @@ def getLoadingCycle():
         while line:
             values = [val for val in line.split(',')]
             ID = int(values[0])
-            if ID<= 1043:
-                line = fp.readline()
-                continue
+            
             minTarget = [int(val) for val in values[1:6]]
             maxTarget = [int(val) for val in values[13:18]]
             print(minTarget, maxTarget)

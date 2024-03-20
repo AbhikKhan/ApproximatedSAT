@@ -1,8 +1,9 @@
 from NTM import *
 import createTree
+import getKBL as kbl
+import csv
 
 import subprocess
-import random
 
 def initOPT(opFile):
     opFile.write("import sys\n")
@@ -150,7 +151,7 @@ def setTarget(target, err, R, N, d, opfile):
         opfile.write(condition1)
         opfile.write(condition2)
 
-if __name__ == "__main__":
+def generateSkewedTree():
     ind = 0
     inputFile = 'cleanTargetRatio.txt'
     with open(inputFile, 'r') as ip:
@@ -183,3 +184,23 @@ if __name__ == "__main__":
             ind+=1
             
             line = ip.readline()
+
+def getLoadingData():
+    file = 'ids.txt'
+    opFile = 'loading_data.xls'
+    k = 5
+    with open(file, 'r') as fp:
+        line = fp.readline()
+        while line:
+            id = int(line)
+            depth = createTree.getDepth(f'z3OutputFiles/z3outputFile{id}')
+            root = createTree.createRoot(f'z3OutputFiles/z3outputFile{id}', depth, k)
+            BB, area, K, B, L = kbl.getPlacementAndTimestamp(root)
+            with open(opFile, 'a', newline='') as op:
+                writer = csv.writer(op)
+                writer.writerow([id,BB, area, K, B, L])
+            line = fp.readline()
+
+if __name__ == "__main__":
+    getLoadingData()
+    # generateSkewedTree()

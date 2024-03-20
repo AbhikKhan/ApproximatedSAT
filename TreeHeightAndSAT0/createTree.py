@@ -1,6 +1,6 @@
 from NTM import *
 
-def createRoot(rootList, x, W, ind):
+def createNode(rootList, x, W, ind):
     """
         Create a rootList from the list data of reagents in each level and sharing of intermediate
         fluid data.
@@ -12,12 +12,12 @@ def createRoot(rootList, x, W, ind):
         if k != 0:
             rootList+=[f'R{i+1}']*k
     children = []
-    createRoot(children, x, W, ind+1)
+    createNode(children, x, W, ind+1)
     if len(children) != 0:
         rootList.append(children)
     return rootList
 
-def createTree(fileName, outputFileName, depth, N, r):
+def createRoot(fileName, depth, r):
     R = []
     x = []
     W = [4]*(depth)
@@ -36,17 +36,29 @@ def createTree(fileName, outputFileName, depth, N, r):
                 x[int(vars[1])-1][int(vars[2])-1] = int(val)
             else:
                 W[int(vars[1])-1] = int(val)
-    print(R)
-    print(x)
-    print(W)
 
     rootList = []
-    createRoot(rootList, x, W, 0)
+    createNode(rootList, x, W, 0)
     # Creating list to tree that is already implemented in NTM library
+    print(rootList)
     root = listToTree(rootList)
+    return root
 
+def createTree(fileName, outputFileName, depth, r):
+    root = createRoot(fileName, depth, r)
     saveTree(root, f'./OutputTree/{outputFileName}.png')
+
+def getDepth(z3file):
+    depth = 1
+    with open(z3file, 'r') as fp:
+        line = fp.readline()
+        while line:
+            if line[0] == 'W':
+                depth+=1
+            line = fp.readline()
+    
+    return depth
 
 
 if __name__ == "__main__":
-    createTree('z3outputFile1', 'OutputTree1', 3, 4, 4)
+    getDepth('z3outputFile')
