@@ -208,9 +208,9 @@ def createTree(file):
 
 
 def getLoadingCycle():
-    k = 4
+    k = 5
     directory = f'z3for{k}/'
-    low, high = 200, 998
+    low, high = 1014, 1014
     for i in range(low, high+1):
         if os.path.exists(directory+f'{i}min'):
             root1 = createTree(directory+f'{i}min')
@@ -220,9 +220,9 @@ def getLoadingCycle():
             Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getPlacementAndTimestamp(root1)
             Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getPlacementAndTimestamp(root2)
             values = [i,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
-            with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
-                writer = csv.writer(opfile)
-                writer.writerow(values)
+            # with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
+            #     writer = csv.writer(opfile)
+            #     writer.writerow(values)
 
 
 # If the it is called from this function
