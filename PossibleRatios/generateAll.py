@@ -153,18 +153,23 @@ def main():
 
 
 def createList(W, reagents, level, childID, weight, tree):
-    print(level, childID)
+    if weight == 0:
+        return []
     child = [weight]
     for r in reagents[level][childID]:
-        child += [f'r{r}']*reagents[level][childID][r]
+        if reagents[level][childID][r]> 0:
+            child += [f'r{r}']*reagents[level][childID][r]
     
     if level in W:
         if childID in W[level]:
             for level_to in W[level][childID]:
                 for child_to in W[level][childID][level_to]:
                     createList(W, reagents, level_to, child_to, W[level][childID][level_to][child_to], child)
-    tree.append(child)
 
+    if len(tree)==0:
+        tree = child
+    else:
+        tree.append(child)
     return tree
 
 def createTree(file):
@@ -199,44 +204,25 @@ def createTree(file):
                     reagents[level][child][r] = weight
             line = fp.readline()
 
-    root = createList(W, reagents, 1, 1, 4, [])       
-    print(root)
-    return root
+    return createList(W, reagents, 1, 1, 4, [])
 
 
 def getLoadingCycle():
-    k = 5
-    directory = f'/z3for{k}/'
-    low, high = 999, 1798
+    k = 4
+    directory = f'z3for{k}/'
+    low, high = 200, 998
     for i in range(low, high+1):
-        root1 = createTree(directory+f'{i}min')
-        root2 = createTree(directory+f'{i}max')
-        Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getPlacementAndTimestamp(root1)
-        Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getPlacementAndTimestamp(root2)
-        values = [i,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
-        with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
-            writer = csv.writer(opfile)
-            writer.writerow(values)
-
-    # Read excel file to get mixing ratios
-    # with open(f'z3for{k}', 'r') as fp:
-    #     line = fp.readline()
-    #     line = fp.readline()
-    #     while line:
-    #         values = [val for val in line.split(',')]
-    #         ID = int(values[0])
-            
-    #         minTarget = [int(val) for val in values[1:6]]
-    #         maxTarget = [int(val) for val in values[13:18]]
-    #         print(minTarget, maxTarget)
-    #         # Use getKBL with idmax idmin z3opFile to get KBL and all parameters.
-    #         Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getKBL(minTarget, f'z3for{k}/{ID}min')
-    #         Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getKBL(maxTarget, f'z3for{k}/{ID}max')
-    #         with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
-    #             writer = csv.writer(opfile)
-    #             values = [ID,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
-    #             writer.writerow(values)
-    #         line = fp.readline()
+        if os.path.exists(directory+f'{i}min'):
+            root1 = createTree(directory+f'{i}min')
+            root2 = createTree(directory+f'{i}max')
+            print(root1)
+            print(root2)
+            Areamin, BoundingBoxmin, Kmin, Bmin, Lmin = getPlacementAndTimestamp(root1)
+            Areamax, BoundingBoxmax, Kmax, Bmax, Lmax = getPlacementAndTimestamp(root2)
+            values = [i,Areamin,BoundingBoxmin,Kmin,Bmin,Lmin,Areamax,BoundingBoxmax,Kmax,Bmax,Lmax]
+            with open(f'loading_output_{k}.xls', 'a', newline='') as opfile:
+                writer = csv.writer(opfile)
+                writer.writerow(values)
 
 
 # If the it is called from this function

@@ -11,7 +11,7 @@ def createList(W, reagents, level, childID, weight, tree):
                 for child_to in W[level][childID][level_to]:
                     createList(W, reagents, level_to, child_to, W[level][childID][level_to][child_to], child)
     tree.append(child)
-
+    
     return tree
 
 def createTree():
