@@ -188,14 +188,15 @@ def generateSkewedTree():
 def getLoadingData():
     file = 'ids.txt'
     opFile = 'loading_data.xls'
-    k = 5
+    k = 4
     with open(file, 'r') as fp:
         line = fp.readline()
         while line:
             id = int(line)
             depth = createTree.getDepth(f'z3OutputFiles/z3outputFile{id}')
-            root = createTree.createRoot(f'z3OutputFiles/z3outputFile{id}', depth, k)
-            BB, area, K, B, L = kbl.getPlacementAndTimestamp(root)
+            K, B, L, root = createTree.createRoot(f'z3OutputFiles/z3outputFile{id}', depth, k)
+            print(K, B, L)
+            BB, area = kbl.getPlacementAndTimestamp(root)
             with open(opFile, 'a', newline='') as op:
                 writer = csv.writer(op)
                 writer.writerow([id,BB, area, K, B, L])

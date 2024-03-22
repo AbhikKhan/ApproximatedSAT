@@ -131,10 +131,13 @@ def getPlacementAndTimestamp(root):
             else:
                 timeStamp[item[1]].append(item[0])
 
-    BB, area = boundingbox(assignment)
-    print("area ", area)
-    K, B, L = KBL(assignment, mixture, timeStamp)
-    return BB, area, K, B, L
+    return boundingbox(assignment)
+
+    # Code to get KBL for general purpose
+    # BB, area = boundingbox(assignment)
+    # print("area ", area)
+    # K, B, L = KBL(assignment, mixture, timeStamp)
+    # return BB, area, K, B, L
 
 
 if __name__ == "__main__":
